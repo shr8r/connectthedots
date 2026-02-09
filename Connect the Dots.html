@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Connect the Dots</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #eaf6ff;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
+
+  canvas {
+    background: white;
+    border: 4px solid #333;
+    border-radius: 12px;
+    touch-action: none;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Connect the Dots</h1>
+<canvas id="canvas" width="800" height="520"></canvas>
+
+<audio id="errorSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_39b3b7a1d4.mp3"></audio>
+<audio id="successSound" src="https://cdn.pixabay.com/audio/2022/03/10/audio_c8b07c07ad.mp3"></audio>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const errorSound = document.getElementById("errorSound");
+const successSound = document.getElementById("successSound");
+
+const DOT_RADIUS = 22;
+const MARGIN = 90;
+
+let startNumber = 1;
+let currentNumber = 1;
+let dots = [];
+let connected = [];
+let completed = false;
+
+let particles = [];
+let animationType = "balloons";
+let dotColor = "#ffd966";
+
+// ---------------- COLORS ----------------
+const dotColors = [
+  "#ffd966", "#ff9aa2", "#a0e7e5", "#b4f8c8",
+  "#cdb4db", "#ffdac1", "#bde0fe", "#ffc8dd"
+];
+
+function pickDotColor() {
+  dotColor = dotColors[Math.floor(Math.random() * dotColors.length)];
+}
+
+// ---------------- DOT GENERATION ----------------
+function generateZigZag() {
+  dots = [];
+  connected = [];
+  completed = false;
+  currentNumber = startNumber;
+  pickDotColor();
+
+  const points = 10;
+  const width = canvas.width - MARGIN * 2;
+  const stepX = width / (points - 1);
+
+  const lanes = [
+    MARGIN + 80,
+    canvas.height / 2,
+    canvas.height - MARGIN - 80
+  ];
+
+  for (let i = 0; i < points; i++) {
+    dots.push({
+      x: MARGIN + i * stepX,
+      y: lanes[Math.floor(Math.random() * lanes.length)],
+      number: startNumber + i
+    });
+  }
+
+  draw();
+}
+
+// ---------------- DRAW ----------------
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Lines
+  if (connected.length > 0) {
+    ctx.strokeStyle = "#4a90e2";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    connected.forEach((d, i) => {
+      if (i === 0) ctx.moveTo(d.x, d.y);
+      else ctx.lineTo(d.x, d.y);
+    });
+    ctx.stroke();
+  }
+
+  // Dots
+  if (!completed) {
+    dots.forEach(d => {
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, DOT_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor;
+      ctx.fill();
+      ctx.strokeStyle = "#333";
+      ctx.stroke();
+
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 18px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(d.number, d.x, d.y);
+    });
+  }
+
+  drawParticles();
+}
+
+// ---------------- PARTICLES ----------------
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  });
+}
+
+// ---------------- CELEBRATIONS ----------------
+function startCelebration() {
+  const types = ["balloons", "stars", "flowers"];
+  animationType = types[Math.floor(Math.random() * types.length)];
+  particles = [];
+
+  if (animationType === "balloons") {
+    for (let i = 0; i < 14; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: canvas.height + Math.random() * 200,
+        r: 18 + Math.random() * 8,
+        speedY: 1 + Math.random() * 2,
+        color: randomColor()
+      });
+    }
+  }
+
+  if (animationType === "stars") {
+    for (let i = 0; i < 20; i++) {
+      particles.push({
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        r: 6 + Math.random() * 6,
+        speedX: (Math.random() - 0.5) * 6,
+        speedY: (Math.random() - 0.5) * 6,
+        color: "#ffd700"
+      });
+    }
+  }
+
+  if (animationType === "flowers") {
+    for (let i = 0; i < 18; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: -Math.random() * 200,
+        r: 10 + Math.random() * 6,
+        speedY: 1 + Math.random() * 2,
+        color: "#ff69b4"
+      });
+    }
+  }
+
+  animateParticles();
+}
+
+function animateParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  particles.forEach(p => {
+    if (animationType === "balloons") p.y -= p.speedY;
+    if (animationType === "flowers") p.y += p.speedY;
+    if (animationType === "stars") {
+      p.x += p.speedX;
+      p.y += p.speedY;
+    }
+  });
+
+  draw();
+
+  if (particles.some(p => p.y < canvas.height + 50 && p.y > -50)) {
+    requestAnimationFrame(animateParticles);
+  }
+}
+
+function randomColor() {
+  const colors = ["#ff5252", "#ffca28", "#4caf50", "#42a5f5", "#ab47bc"];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// ---------------- INTERACTION ----------------
+function getDot(x, y) {
+  return dots.find(d => Math.hypot(d.x - x, d.y - y) < DOT_RADIUS + 10);
+}
+
+canvas.addEventListener("pointerdown", e => {
+  if (completed) return;
+
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+
+  const dot = getDot(x, y);
+  if (!dot) return;
+
+  if (dot.number === currentNumber) {
+    connected.push(dot);
+    currentNumber++;
+    draw();
+
+    if (currentNumber === startNumber + 10) {
+      completed = true;
+      successSound.play();
+      startCelebration();
+
+      setTimeout(() => {
+        alert("Way To Go! Click for the next level.");
+        nextLevel();
+      }, 1400);
+    }
+  } else {
+    errorSound.play();
+  }
+});
+
+// ---------------- LEVEL CONTROL ----------------
+function nextLevel() {
+  startNumber += 10;
+
+  if (startNumber > 100) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "bold 44px Arial";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#4a90e2";
+    ctx.fillText(
+      "🎉 You Got All The Way to 100! 🎉",
+      canvas.width / 2,
+      canvas.height / 2
+    );
+    return;
+  }
+
+  generateZigZag();
+}
+
+// Start game
+generateZigZag();
+</script>
+
+</body>
+</html>
